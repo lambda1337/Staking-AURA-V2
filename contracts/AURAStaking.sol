@@ -63,12 +63,8 @@ contract AURAStaking is
         minStakingAmount = _MinStakingAmount * 10**18;
     }
 
-    function pause() public onlyOwner {
-        _pause();
-    }
-
-    function unPause() public onlyOwner {
-        _unpause();
+    function toggle_pause() onlyOwner public {
+        (paused()) ? _unpause() : _pause();
     }
 
     function CurrentAPR() public view override returns (uint256) {
@@ -99,35 +95,23 @@ contract AURAStaking is
         return allocatedReward;
     }
 
-    function IncreaseAllocationReward(uint256 _amount)
-        public
-        override
-        onlyOwner
-        returns (bool)
-    {
+    function IncreaseAllocationReward(uint256 _amount) 
+    public onlyOwner override returns(bool){
         allocatedReward += _amount;
         token.transferFrom(msg.sender, address(this), _amount);
         return true;
     }
 
-    function DecreaseAllocationReward(uint256 _amount)
-        public
-        override
-        onlyOwner
-        returns (bool)
-    {
+    function DecreaseAllocationReward(uint256 _amount) 
+    public onlyOwner override returns(bool){
         allocatedReward -= _amount;
         token.transfer(msg.sender, _amount);
         return true;
     }
 
-    function TransferAllocatedRewardFromContractToOwner(uint256 _amount)
-        public
-        override
-        onlyOwner
-        returns (bool)
-    {
-        token.transfer(msg.sender, _amount);
+    function TransferAllocatedRewardFromContractToOwner(uint256 _amount) 
+    public onlyOwner override returns(bool){
+        token.transfer(msg.sender,_amount);
         return true;
     }
 
@@ -142,13 +126,9 @@ contract AURAStaking is
     }
 
     //Re-Fund scenario
-    function EmergencyWithdrawal(address _user, uint256 _amount)
-        public
-        override
-        onlyOwner
-        returns (bool)
-    {
-        token.transfer(_user, _amount);
+    function EmergencyWithdrawal(address _user, uint256 _amount) 
+    onlyOwner override public returns(bool){
+        token.transfer(_user,_amount);
         return true;
     }
 
@@ -334,7 +314,7 @@ contract AURAStaking is
         totalDelegates--;
     }
 
-    function Withdraw() public override returns (bool) {
+    function Withdraw() public override nonReentrant returns (bool) {
         if (user[_msgSender()].unstake == false) revert UnStakeFirst();
         if (user[_msgSender()].expiry > Time) revert NotExpiredYet();
         if (user[_msgSender()].currentlyStaked <= 0) revert NotExpiredYet();
@@ -356,8 +336,8 @@ contract AURAStaking is
         }
     }
 
-    function Claim() public override returns (bool) {
-        if (user[_msgSender()].totalPendingReward == 0) revert InvalidUser();
+    function Claim() public override nonReentrant returns(bool){
+        require(user[_msgSender()].totalPendingReward == 0, "Invalid User");
         _claim();
         return true;
     }
@@ -377,8 +357,8 @@ contract AURAStaking is
             );
             user[_msgSender()].totalAccumulatedReward += user[_msgSender()]
                 .totalPendingReward;
-            user[_msgSender()].totalPendingReward -= user[_msgSender()]
-                .totalPendingReward;
+            // to pass from non-zero var to zero var, is more gas efficient set it to 0.
+            user[_msgSender()].totalPendingReward = 0;
         } else {
             token.transfer(msg.sender, claim);
             user[_msgSender()].totalAccumulatedReward += claim;
